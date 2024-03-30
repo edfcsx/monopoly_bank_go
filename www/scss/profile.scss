@@ -1,0 +1,14 @@
+.bank {
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  &__container {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid red;
+    width: 500px;
+    align-self: center;
+  }
+}

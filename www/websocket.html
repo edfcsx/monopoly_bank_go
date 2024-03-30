@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ptBr">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+</body>
+    <button id="sendHello">Send Hello</button>
+    <button id="authenticate">Send Authenticate JSON</button>
+    <button id="ping">Send Ping</button>
+</body>
+<script>
+var ws;
+var start_time;
+
+window.onload = function() {
+    ws = new WebSocket("ws://localhost:4444");
+
+    ws.onmessage = function(evt) {
+        var end_time = performance.now();
+        var duration = end_time - start_time;
+
+        console.log(evt.data);
+        console.log('received message in ' + duration + 'ms');
+    };
+
+    ws.onopen = function(evt) {
+        console.log('Connected....')
+    }
+
+    ws.onclose = function(evt) {
+        console.log('Connection closed....', evt)
+    }
+
+    document.getElementById('sendHello').addEventListener('click', function() {
+        start_time = performance.now();
+        ws.send('Hello');
+    });
+
+    document.getElementById('ping').addEventListener('click', function() {
+        start_time = performance.now();
+        ws.send("Ping|");
+    });
+
+    document.getElementById('authenticate').addEventListener('click', function() {
+        start_time = performance.now();
+        ws.send("Authenticate|" + JSON.stringify({ username: "edfcsx", password: "1234" }));
+    });
+}
+
+</script>
+</html>

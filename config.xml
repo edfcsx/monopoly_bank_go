@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Settings>
+    <address>192.168.15.8</address>
+    <root-username>admin</root-username>
+    <root-password>admin</root-password>
+</Settings>
