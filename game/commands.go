@@ -83,10 +83,14 @@ func (c *CmdConnection) parse() error {
 func GetCmdRequest[T any](c *CmdConnection) (*Request[T], error) {
 	var data T
 
-	err := json.Unmarshal([]byte(c.Raw), &data)
+	cmd := strings.Split(c.Raw, "|")
 
-	if err != nil {
-		return nil, err
+	if len(cmd) == 2 && len(cmd[1]) > 0 {
+		err := json.Unmarshal([]byte(cmd[1]), &data)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	req := &Request[T]{
@@ -177,14 +181,14 @@ func SendResponse[T any](req *Request[T]) {
 		req.Res.Data["args_id"] = arg
 	}
 
-	dataStr, err := json.Marshal(req.Res.Data)
+	dataBytes, err := json.Marshal(req.Res.Data)
 
 	if err != nil {
 		fmt.Println("error on parsing response data", err)
 		return
 	}
 
-	response := fmt.Sprint(req.Res.Cmd, "|", dataStr)
+	response := fmt.Sprint(req.Res.Cmd, "|", string(dataBytes))
 
 	var errW *Parse.FrameError
 
