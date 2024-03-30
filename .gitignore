@@ -21,3 +21,6 @@
 go.work
 
 www/node_modules
+
+.idea
+.vscode
