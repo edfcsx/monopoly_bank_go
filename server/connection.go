@@ -10,7 +10,6 @@ type Connection struct {
 	id       string
 	protocol Protocol
 	Socket   net.Conn
-	Player   string
 }
 
 func (c *Connection) SendAndClose(data string) {

@@ -66,29 +66,24 @@ class Commands {
 class AuthenticateSuccess extends Commands {
     execute(serverMessage) {
         var _a, _b;
-        if (serverMessage.args && !serverMessage.args.popup_disabled) {
-            get_context().pop_up.fire('Monopoly Bank', `Bem vindo, ${(_a = serverMessage.args) === null || _a === void 0 ? void 0 : _a.username}!`, 'success', 3000);
-        }
+        console.log('MENSAGEM RECEBIDA DE AUTH:>', serverMessage);
+        get_context().pop_up.fire('Monopoly Bank', `Bem vindo, ${(_a = serverMessage.args) === null || _a === void 0 ? void 0 : _a.username}!`, 'success', 3000);
         if (serverMessage.args) {
             sessionStorage.setItem('auth', JSON.stringify({
                 username: serverMessage.args.username,
-                password: serverMessage.args.password
+                password: serverMessage.args.password,
+                token: serverMessage.player_hash
             }));
             (_b = getLoginButton()) === null || _b === void 0 ? void 0 : _b.removeAttribute('disabled');
             if (window.location.pathname != '/bank') {
-                window.location.href = '/bank';
-            }
-            else {
-                if (this.callback)
-                    this.callback();
+                setTimeout(() => {
+                    window.location.href = '/bank';
+                }, 1000);
             }
         }
         else {
             get_context().pop_up.fire('Monopoly Bank', 'Ocorreu um erro no sistema, por favor contate o desenvolvedor', 'error', 5000);
         }
-    }
-    setCallback(callback) {
-        this.callback = callback;
     }
 }
 class AuthenticateFailed extends Commands {
@@ -159,7 +154,9 @@ class Connection {
                 console.log('mensagem recebida', message);
                 if (message) {
                     const command = this.commands[`${message.command}`];
-                    command.execute(message);
+                    if (command) {
+                        command.execute(message);
+                    }
                 }
             }
             if (!this.messages.length) {
@@ -185,6 +182,10 @@ class Connection {
                 delete data.args;
             }
             const sendingData = Object.assign(Object.assign({}, data), { args_id: unique_id });
+            if (sessionStorage.getItem('auth')) {
+                const auth = JSON.parse(sessionStorage.getItem('auth'));
+                sendingData.player_hash = auth.token;
+            }
             // @ts-ignore
             delete sendingData.command;
             (_a = this.socket) === null || _a === void 0 ? void 0 : _a.send(`${data.command}|${JSON.stringify(sendingData)}`);
@@ -198,38 +199,15 @@ window.monopoly = {
     connection: new Connection(),
     pop_up: new PopUp()
 };
-// reconnect connection on change page
+// Check if the user is in bank page
 if (window.location.pathname === '/bank') {
-    if (!sessionStorage.getItem('auth')) {
-        window.location.href = '/';
-    }
-    else {
-        const context = get_context();
-        if (!context.connection.isOpen()) {
-            context.connection.openSocket();
+    // await connection to be open
+    const interval = setInterval(() => {
+        if (get_context().connection.isOpen()) {
+            clearInterval(interval);
+            get_context().connection.send({ command: CommandsRequest.SendProfile });
         }
-        const wait_connection = setInterval(() => {
-            if (context.connection.isOpen()) {
-                clearInterval(wait_connection);
-                let user_raw = sessionStorage.getItem('auth');
-                if (user_raw) {
-                    const data = JSON.parse(user_raw);
-                    const { username, password } = data;
-                    // set callback to send profile
-                    context.connection.commands[CommandsResponse.AuthenticateSuccess]
-                        .setCallback(() => {
-                        context.connection.send({ command: CommandsRequest.SendProfile });
-                    });
-                    context.connection.send({
-                        command: CommandsRequest.Authenticate,
-                        args: { username, password, popup_disabled: true },
-                        username,
-                        password
-                    });
-                }
-            }
-        }, 100);
-    }
+    }, 100);
 }
 /*_______________________________________________________________________________
     this space reserved for login

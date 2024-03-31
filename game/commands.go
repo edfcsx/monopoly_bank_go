@@ -9,11 +9,12 @@ import (
 )
 
 type Command string
+type Void map[string]interface{}
 
 const (
 	AuthenticateCommand Command = "Authenticate"
 	PingCommand         Command = "Ping"
-	ProfileCommand      Command = "Profile"
+	ProfileCommand      Command = "SendProfile"
 	TransferCommand     Command = "Transfer"
 )
 
@@ -45,6 +46,14 @@ type Response struct {
 	SendToAll bool
 }
 
+func NewResponse() Response {
+	return Response{
+		Cmd:       "",
+		Data:      map[string]interface{}{},
+		SendToAll: false,
+	}
+}
+
 type CmdConnection struct {
 	Raw        string
 	RawJson    map[string]interface{}
@@ -58,7 +67,11 @@ type Request[T any] struct {
 	Cmd        Command
 	Connection Server.Connection
 	Data       *T
-	Res        Response
+	res        []Response
+}
+
+func (r *Request[T]) AddResponse(res Response) {
+	r.res = append(r.res, res)
 }
 
 func (c *CmdConnection) parse() error {
@@ -99,14 +112,15 @@ func GetCmdRequest[T any](c *CmdConnection) (*Request[T], error) {
 		Cmd:        c.Cmd,
 		Connection: c.Connection,
 		Data:       &data,
-		Res:        Response{},
+		res:        []Response{},
 	}
 
-	req.Res.Data = make(map[string]interface{})
 	return req, nil
 }
 
 func AcceptCommand(commandRaw string, c *Server.Connection) {
+	fmt.Println("AcceptCommand", commandRaw)
+
 	conn := &CmdConnection{
 		Raw:        commandRaw,
 		Connection: *c,
@@ -140,36 +154,82 @@ func AuthenticateCommandHandler(cmd *CmdConnection) {
 		return
 	}
 
-	player := PlayerExists(req.Data.Username)
+	player := PlayerExistsByName(req.Data.Username)
+
+	res := NewResponse()
 
 	if player == nil {
-		CreatePlayer(req.Data.Username, req.Data.Password)
-		req.Res.Cmd = string(AuthenticateSuccess)
-		req.Res.Data["message"] = fmt.Sprintf("O jogador %s se juntou ao jogo!", req.Data.Username)
-		req.Res.SendToAll = true
-	} else if player.Password != req.Data.Password {
-		req.Res.Cmd = string(AuthenticateFailed)
+		playerHash := CreatePlayer(req.Data.Username, req.Data.Password)
+
+		res.Cmd = string(AuthenticateSuccess)
+		res.Data["player_hash"] = playerHash
+
+		globalRes := NewResponse()
+		globalRes.Cmd = string(GlobalMessage)
+		globalRes.SendToAll = true
+		globalRes.Data["message"] = fmt.Sprintf("O jogador %s se juntou ao jogo!", req.Data.Username)
+		req.AddResponse(globalRes)
 	} else {
-		req.Connection.Player = req.Data.Username
+		if player.Password != req.Data.Password {
+			res.Cmd = string(AuthenticateFailed)
+		} else {
+			res.Cmd = string(AuthenticateSuccess)
+			res.Data["player_hash"] = player.AuthHash
+		}
 	}
 
+	req.AddResponse(res)
 	SendResponse(req)
 }
 
 func PingCommandHandler(cmd *CmdConnection) {
-	req, err := GetCmdRequest[map[string]interface{}](cmd)
+	req, err := GetCmdRequest[Void](cmd)
 
 	if err != nil {
 		fmt.Println("error on parsing ping command", err)
 		SendRawResponse(BadRequest, "", &cmd.Connection)
 	}
 
-	req.Res.Cmd = string(Pong)
+	res := NewResponse()
+	res.Cmd = string(Pong)
+	req.AddResponse(res)
+
 	SendResponse(req)
 }
 
+type ProfileReq struct {
+	PlayerHash string `json:"player_hash"`
+}
+
 func ProfileCommandHandler(cmd *CmdConnection) {
-	fmt.Println("ProfileCommandHandler", cmd)
+	req, err := GetCmdRequest[ProfileReq](cmd)
+
+	if err != nil {
+		fmt.Println("error on parsing profile command", err)
+		SendRawResponse(BadRequest, "", &cmd.Connection)
+		return
+	}
+
+	if _, ok := req.RawJson["player_hash"]; !ok {
+		fmt.Println("profile command: player_hash not found")
+		SendRawResponse(BadRequest, "", &cmd.Connection)
+		return
+	}
+
+	player := PlayerExistsByHash(req.Data.PlayerHash)
+
+	if player == nil {
+		fmt.Println("profile command: player not found")
+		SendRawResponse(BadRequest, "", &cmd.Connection)
+		return
+	}
+
+	res := NewResponse()
+	res.Cmd = string(ProfileData)
+	res.Data["balance"] = player.Balance
+	req.AddResponse(res)
+
+	SendResponse(req)
 }
 
 func TransferCommandHandler(cmd *CmdConnection) {
@@ -177,36 +237,42 @@ func TransferCommandHandler(cmd *CmdConnection) {
 }
 
 func SendResponse[T any](req *Request[T]) {
-	if arg, ok := req.RawJson["args_id"]; ok {
-		req.Res.Data["args_id"] = arg
-	}
+	for _, res := range req.res {
 
-	dataBytes, err := json.Marshal(req.Res.Data)
-
-	if err != nil {
-		fmt.Println("error on parsing response data", err)
-		return
-	}
-
-	response := fmt.Sprint(req.Res.Cmd, "|", string(dataBytes))
-
-	var errW *Parse.FrameError
-
-	if req.Res.SendToAll {
-		for _, v := range Server.GetConnections(Server.WEBSOCKET) {
-			errW = Parse.WriteToWebsocket(v.Socket, response, Parse.TextFrame)
-
-			if errW != nil {
-				fmt.Println("error on writing response", errW)
-				v.Close()
+		if arg, ok := req.RawJson["args_id"]; ok {
+			if !res.SendToAll {
+				res.Data["args_id"] = arg
 			}
 		}
-	} else {
-		errW = Parse.WriteToWebsocket(req.Connection.Socket, response, Parse.TextFrame)
-	}
 
-	if errW != nil {
-		fmt.Println("error on writing response", errW)
+		dataBytes, err := json.Marshal(res.Data)
+
+		if err != nil {
+			fmt.Println("error on parsing response data", err)
+			return
+		}
+
+		response := fmt.Sprint(res.Cmd, "|", string(dataBytes))
+		fmt.Println("response", response)
+
+		var errW *Parse.FrameError
+
+		if res.SendToAll {
+			for _, v := range Server.GetConnections(Server.WEBSOCKET) {
+				errW = Parse.WriteToWebsocket(v.Socket, response, Parse.TextFrame)
+
+				if errW != nil {
+					fmt.Println("error on writing response", errW)
+					v.Close()
+				}
+			}
+		} else {
+			errW = Parse.WriteToWebsocket(req.Connection.Socket, response, Parse.TextFrame)
+		}
+
+		if errW != nil {
+			fmt.Println("error on writing response", errW)
+		}
 	}
 }
 
