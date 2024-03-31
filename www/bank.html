@@ -1,18 +1,58 @@
 <!DOCTYPE html>
 <html lang="ptBr">
 <head>
-    <meta charset="UTF-8" name="viewport" content="width=device-width, height=device-height, initial-scale=1">
-    <title>Monopoly Bank</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
-    <link href="/css/main.css" rel="stylesheet">
-    <link href="/css/profile.css" rel="stylesheet">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Monopoly Bank</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+	<link href="/css/main.css" rel="stylesheet">
+	<link href="/css/nes.css" rel="stylesheet">
+	<link href="/css/profile.css" rel="stylesheet">
 </head>
 <body>
-    <div class="bank">
-        <div class="bank__container"></div>
-    </div>
+	<div class="bank">
+		<div class="bank__container">
+			<div class="bank__profile">
+				<div class="bank__profile__avatar">
+					<img src="/images/portrait_1.jpg" alt="Avatar" />
+				</div>
+
+				<div class="bank__profile__summary">
+					<div class="bank__profile__summary__name">edfcsx</div>
+					<div class="bank__profile__summary__money">$ 1.000,00</div>
+				</div>
+			</div>
+
+			<div class="bank__options">
+				<button type="button" class="nes-btn bank__options__btn">Transferir</button>
+				<button type="button" class="nes-btn bank__options__btn">Movimentações</button>
+			</div>
+
+			<div class="bank__transfer">
+				<form>
+					<label for="player">Jogador</label>
+					<div class="nes-select">
+						<select required id="player">
+							<option value="0">Jogador 1</option>
+							<option value="1">Jogador 2</option>
+						</select>
+					</div>
+
+					<div class="nes-field">
+						<label for="name_field">Valor</label>
+						<input type="number" id="name_field" class="nes-input">
+					</div>
+
+					<button type="submit" class="nes-btn is-success">
+						Transferir
+					</button>
+				</form>
+			</div>
+		</div>
+	</div>
 </body>
 <script src="/scripts/main.js"></script>
 </html>

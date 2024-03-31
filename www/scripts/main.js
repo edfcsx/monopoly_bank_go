@@ -99,6 +99,11 @@ class ProfileCommand extends Commands {
         console.log(serverMessage);
     }
 }
+class GlobalMessage extends Commands {
+    execute(serverMessage) {
+        get_context().pop_up.fire('Monopoly Bank', serverMessage.message, 'success', 5000);
+    }
+}
 class Connection {
     constructor() {
         this.socket = null;
@@ -169,6 +174,7 @@ class Connection {
         this.commands[CommandsResponse.AuthenticateSuccess] = new AuthenticateSuccess();
         this.commands[CommandsResponse.AuthenticateFailed] = new AuthenticateFailed();
         this.commands[CommandsRequest.SendProfile] = new ProfileCommand();
+        this.commands[CommandsResponse.GlobalMessage] = new GlobalMessage();
     }
     isOpen() {
         return this.is_open;

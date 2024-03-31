@@ -143,6 +143,17 @@ class ProfileCommand extends Commands {
 	}
 }
 
+class GlobalMessage extends Commands {
+	public execute (serverMessage: NetworkingMessage) {
+		get_context().pop_up.fire(
+			'Monopoly Bank',
+			serverMessage.message,
+			'success',
+			5000,
+		)
+	}
+}
+
 class Connection {
 	private socket: WebSocket | null = null;
 	private is_open: boolean = false;
@@ -231,6 +242,7 @@ class Connection {
 		this.commands[CommandsResponse.AuthenticateSuccess] = new AuthenticateSuccess()
 		this.commands[CommandsResponse.AuthenticateFailed] = new AuthenticateFailed()
 		this.commands[CommandsRequest.SendProfile] = new ProfileCommand()
+		this.commands[CommandsResponse.GlobalMessage] = new GlobalMessage()
 	}
 
 	public isOpen (): boolean {

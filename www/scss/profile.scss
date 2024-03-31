@@ -1,14 +1,92 @@
 .bank {
-  width: 100vw;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+	align-items: center;
+	padding: 24px;
 
   &__container {
     display: flex;
     flex-direction: column;
-    border: 1px solid red;
     width: 500px;
     align-self: center;
-  }
+		margin-top: 100px;
+		//border: 1px solid red;
+
+		@media screen and (max-width: 768px) {
+			width: 100%;
+			margin-top: 0;
+		}
+
+		&__title {
+			font-size: 2rem;
+			margin-bottom: 1rem;
+		}
+	}
+
+	&__profile {
+		display: flex;
+
+		&__avatar {
+			align-self: center;
+
+			img {
+				@media screen and (max-width: 768px) {
+					width: 64px;
+				}
+			}
+		}
+
+		&__summary {
+			display: flex;
+			flex-direction: column;
+			margin-left: 16px;
+
+			&__name {
+				font-size: 32px;
+				color: #FFF;
+
+				@media screen and (max-width: 768px) {
+					font-size: 24px;
+				}
+			}
+
+			&__money {
+				font-size: 22px;
+				color: #FFF;
+
+				@media screen and (max-width: 768px) {
+					font-size: 18px;
+				}
+			}
+		}
+	}
+
+	&__options {
+		display: flex;
+		margin-top: 36px;
+		gap: 12px;
+
+		@media screen and (max-width: 768px) {
+			margin-top: 24px;
+		}
+
+		&__btn {
+			height: 34px;
+			padding: 0 8px;
+		}
+	}
+
+	&__transfer {
+		margin-top: 24px;
+
+		label {
+			color: #FFF !important;
+		}
+
+		form {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+	}
 }
