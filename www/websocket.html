@@ -15,7 +15,7 @@ var ws;
 var start_time;
 
 window.onload = function() {
-    ws = new WebSocket("ws://localhost:4444");
+		ws = new WebSocket("ws://localhost:4444/");
 
     ws.onmessage = function(evt) {
         var end_time = performance.now();
