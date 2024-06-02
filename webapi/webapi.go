@@ -13,8 +13,7 @@ var routes = map[string]func(*http.Request, *connection.Connection){
 }
 
 var defaultHeaders = map[string]string{
-	"Content-Type":                "application/json",
-	"Access-Control-Allow-Origin": "*",
+	"Content-Type": "application/json",
 }
 
 // Handler is the function that handles the webapi requests
