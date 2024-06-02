@@ -1,37 +1,17 @@
-package Game
+package game
 
 import (
 	"encoding/json"
 	"fmt"
-	Parse "monopoly_bank_go/parse"
-	Server "monopoly_bank_go/server"
+	"monopoly_bank_go/connection"
+	"monopoly_bank_go/server"
+	"monopoly_bank_go/types"
+	"monopoly_bank_go/websocket"
 	"strings"
 )
 
 type Command string
-type Void map[string]interface{}
-
-const (
-	AuthenticateCommand Command = "Authenticate"
-	PingCommand         Command = "Ping"
-	ProfileCommand      Command = "SendProfile"
-	TransferCommand     Command = "Transfer"
-)
-
 type CommandResponse string
-
-const (
-	AuthenticateFailed        CommandResponse = "AuthenticateFailed"
-	AuthenticateSuccess       CommandResponse = "AuthenticateSuccess"
-	Pong                      CommandResponse = "Pong"
-	ProfileData               CommandResponse = "ProfileData"
-	TransferSuccess           CommandResponse = "TransferSuccess"
-	TransferFailed            CommandResponse = "TransferFailed"
-	TransferInsufficientFunds CommandResponse = "TransferInsufficientFunds"
-	TransferReceived          CommandResponse = "TransferReceived"
-	BadRequest                CommandResponse = "BadRequest"
-	GlobalMessage             CommandResponse = "GlobalMessage"
-)
 
 var commandsHandler = map[Command]func(conn *CmdConnection){
 	AuthenticateCommand: AuthenticateCommandHandler,
@@ -40,38 +20,11 @@ var commandsHandler = map[Command]func(conn *CmdConnection){
 	TransferCommand:     TransferCommandHandler,
 }
 
-type Response struct {
-	Cmd       string
-	Data      map[string]interface{}
-	SendToAll bool
-}
-
-func NewResponse() Response {
-	return Response{
-		Cmd:       "",
-		Data:      map[string]interface{}{},
-		SendToAll: false,
-	}
-}
-
 type CmdConnection struct {
 	Raw        string
 	RawJson    map[string]interface{}
 	Cmd        Command
-	Connection Server.Connection
-}
-
-type Request[T any] struct {
-	Raw        string
-	RawJson    map[string]interface{}
-	Cmd        Command
-	Connection Server.Connection
-	Data       *T
-	res        []Response
-}
-
-func (r *Request[T]) AddResponse(res Response) {
-	r.res = append(r.res, res)
+	Connection *connection.Connection
 }
 
 func (c *CmdConnection) parse() error {
@@ -93,7 +46,7 @@ func (c *CmdConnection) parse() error {
 	return nil
 }
 
-func GetCmdRequest[T any](c *CmdConnection) (*Request[T], error) {
+func GetRequest[T any](c *CmdConnection) (*Request[T], error) {
 	var data T
 
 	cmd := strings.Split(c.Raw, "|")
@@ -118,12 +71,12 @@ func GetCmdRequest[T any](c *CmdConnection) (*Request[T], error) {
 	return req, nil
 }
 
-func AcceptCommand(commandRaw string, c *Server.Connection) {
+func AcceptCommand(commandRaw string, c *connection.Connection) {
 	fmt.Println("AcceptCommand", commandRaw)
 
 	conn := &CmdConnection{
 		Raw:        commandRaw,
-		Connection: *c,
+		Connection: c,
 		RawJson:    map[string]interface{}{},
 	}
 
@@ -138,102 +91,6 @@ func AcceptCommand(commandRaw string, c *Server.Connection) {
 	if commandFunc, ok := commandsHandler[conn.Cmd]; ok {
 		commandFunc(conn)
 	}
-}
-
-type AuthenticateReq struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-func AuthenticateCommandHandler(cmd *CmdConnection) {
-	req, err := GetCmdRequest[AuthenticateReq](cmd)
-
-	if err != nil {
-		fmt.Println("error on parsing authenticate command", err)
-		SendRawResponse(BadRequest, "", &cmd.Connection)
-		return
-	}
-
-	player := PlayerExistsByName(req.Data.Username)
-
-	res := NewResponse()
-
-	if player == nil {
-		playerHash := CreatePlayer(req.Data.Username, req.Data.Password)
-
-		res.Cmd = string(AuthenticateSuccess)
-		res.Data["player_hash"] = playerHash
-
-		globalRes := NewResponse()
-		globalRes.Cmd = string(GlobalMessage)
-		globalRes.SendToAll = true
-		globalRes.Data["message"] = fmt.Sprintf("O jogador %s se juntou ao jogo!", req.Data.Username)
-		req.AddResponse(globalRes)
-	} else {
-		if player.Password != req.Data.Password {
-			res.Cmd = string(AuthenticateFailed)
-		} else {
-			res.Cmd = string(AuthenticateSuccess)
-			res.Data["player_hash"] = player.AuthHash
-		}
-	}
-
-	req.AddResponse(res)
-	SendResponse(req)
-}
-
-func PingCommandHandler(cmd *CmdConnection) {
-	req, err := GetCmdRequest[Void](cmd)
-
-	if err != nil {
-		fmt.Println("error on parsing ping command", err)
-		SendRawResponse(BadRequest, "", &cmd.Connection)
-	}
-
-	res := NewResponse()
-	res.Cmd = string(Pong)
-	req.AddResponse(res)
-
-	SendResponse(req)
-}
-
-type ProfileReq struct {
-	PlayerHash string `json:"player_hash"`
-}
-
-func ProfileCommandHandler(cmd *CmdConnection) {
-	req, err := GetCmdRequest[ProfileReq](cmd)
-
-	if err != nil {
-		fmt.Println("error on parsing profile command", err)
-		SendRawResponse(BadRequest, "", &cmd.Connection)
-		return
-	}
-
-	if _, ok := req.RawJson["player_hash"]; !ok {
-		fmt.Println("profile command: player_hash not found")
-		SendRawResponse(BadRequest, "", &cmd.Connection)
-		return
-	}
-
-	player := PlayerExistsByHash(req.Data.PlayerHash)
-
-	if player == nil {
-		fmt.Println("profile command: player not found")
-		SendRawResponse(BadRequest, "", &cmd.Connection)
-		return
-	}
-
-	res := NewResponse()
-	res.Cmd = string(ProfileData)
-	res.Data["balance"] = player.Balance
-	req.AddResponse(res)
-
-	SendResponse(req)
-}
-
-func TransferCommandHandler(cmd *CmdConnection) {
-	fmt.Println("TransferCommandHandler", cmd)
 }
 
 func SendResponse[T any](req *Request[T]) {
@@ -255,11 +112,11 @@ func SendResponse[T any](req *Request[T]) {
 		response := fmt.Sprint(res.Cmd, "|", string(dataBytes))
 		fmt.Println("response", response)
 
-		var errW *Parse.FrameError
+		var errW *websocket.FrameError
 
 		if res.SendToAll {
-			for _, v := range Server.GetConnections(Server.WEBSOCKET) {
-				errW = Parse.WriteToWebsocket(v.Socket, response, Parse.TextFrame)
+			for _, v := range server.GetConnections(types.WEBSOCKET) {
+				errW = websocket.Write(v.Socket, response, websocket.TextFrame)
 
 				if errW != nil {
 					fmt.Println("error on writing response", errW)
@@ -267,7 +124,7 @@ func SendResponse[T any](req *Request[T]) {
 				}
 			}
 		} else {
-			errW = Parse.WriteToWebsocket(req.Connection.Socket, response, Parse.TextFrame)
+			errW = websocket.Write(req.Connection.Socket, response, websocket.TextFrame)
 		}
 
 		if errW != nil {
@@ -276,9 +133,9 @@ func SendResponse[T any](req *Request[T]) {
 	}
 }
 
-func SendRawResponse(cmd CommandResponse, data string, c *Server.Connection) {
+func SendRawResponse(cmd CommandResponse, data string, c *connection.Connection) {
 	response := fmt.Sprint(cmd, "|", data)
-	errW := Parse.WriteToWebsocket(c.Socket, response, Parse.TextFrame)
+	errW := websocket.Write(c.Socket, response, websocket.TextFrame)
 
 	if errW != nil {
 		fmt.Println("error on writing response", errW)

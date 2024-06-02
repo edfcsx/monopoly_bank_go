@@ -8,51 +8,70 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 	<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
-	<link href="/css/main.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Reddit+Mono:wght@200..900&display=swap" rel="stylesheet">
 	<link href="/css/nes.css" rel="stylesheet">
-	<link href="/css/profile.css" rel="stylesheet">
+	<link href="/dist/styles.css" rel="stylesheet">
 </head>
 <body>
 	<div class="bank">
 		<div class="bank__container">
-			<div class="bank__profile">
-				<div class="bank__profile__avatar">
-					<img src="/images/portrait_1.jpg" alt="Avatar" />
+			<div class="bank__header">
+				<div class="bank__header__portrait">
+					<img src="/images/3.png" alt="player avatar" />
 				</div>
 
-				<div class="bank__profile__summary">
-					<div class="bank__profile__summary__name">edfcsx</div>
-					<div class="bank__profile__summary__money">$ 1.000,00</div>
+				<div class="bank__header__profile">
+					<span class="bank__header__profile__name">John Doe</span>
+					<span class="bank__header__profile__money">$ 1.000,00</span>
 				</div>
 			</div>
 
 			<div class="bank__options">
-				<button type="button" class="nes-btn bank__options__btn">Transferir</button>
-				<button type="button" class="nes-btn bank__options__btn">Movimentações</button>
-			</div>
-
-			<div class="bank__transfer">
-				<form>
-					<label for="player">Jogador</label>
-					<div class="nes-select">
-						<select required id="player">
-							<option value="0">Jogador 1</option>
-							<option value="1">Jogador 2</option>
-						</select>
-					</div>
-
-					<div class="nes-field">
-						<label for="name_field">Valor</label>
-						<input type="number" id="name_field" class="nes-input">
-					</div>
-
-					<button type="submit" class="nes-btn is-success">
-						Transferir
-					</button>
-				</form>
+				<span>Transações</span>
+				<span>Movimentações</span>
 			</div>
 		</div>
+
+
+<!--		<div class="bank__container">-->
+<!--			<div class="bank__profile">-->
+<!--				<div class="bank__profile__avatar">-->
+<!--					<img src="/images/portrait_1.jpg" alt="Avatar" />-->
+<!--				</div>-->
+
+<!--				<div class="bank__profile__summary">-->
+<!--					<div id="bank__profile__id" class="bank__profile__summary__name">edfcsx</div>-->
+<!--					<div id="bank__profile__money" class="bank__profile__summary__money">$ 1.000,00</div>-->
+<!--				</div>-->
+<!--			</div>-->
+
+<!--			<div class="bank__options">-->
+<!--				<button type="button" class="nes-btn bank__options__btn">Transferir</button>-->
+<!--				<button type="button" class="nes-btn bank__options__btn">Movimentações</button>-->
+<!--			</div>-->
+
+<!--			<div class="bank__transfer">-->
+<!--				<form>-->
+<!--					<label for="player">Jogador</label>-->
+<!--					<div class="nes-select">-->
+<!--						<select required id="player">-->
+<!--							<option value="0">Jogador 1</option>-->
+<!--							<option value="1">Jogador 2</option>-->
+<!--						</select>-->
+<!--					</div>-->
+
+<!--					<div class="nes-field">-->
+<!--						<label for="name_field">Valor</label>-->
+<!--						<input type="number" id="name_field" class="nes-input">-->
+<!--					</div>-->
+
+<!--					<button type="submit" class="nes-btn is-success">-->
+<!--						Transferir-->
+<!--					</button>-->
+<!--				</form>-->
+<!--			</div>-->
+<!--		</div>-->
 	</div>
 </body>
-<script src="/dist/bundle.js"></script>
+<script src="/dist/app.js"></script>
 </html>

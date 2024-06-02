@@ -1,14 +1,14 @@
-package FileHandler
+package static_files
 
 import (
 	"fmt"
+	"monopoly_bank_go/connection"
 	"monopoly_bank_go/http"
-	"monopoly_bank_go/server"
 	"os"
 	"strings"
 )
 
-var ROOT_DIR string
+var rootPath string
 
 var contentType = map[string]string{
 	"html": "text/html",
@@ -30,24 +30,23 @@ func init() {
 		os.Exit(1)
 	}
 
-	ROOT_DIR = dir + "/www"
+	rootPath = dir + "/www"
 }
 
-func AcceptConnection(c *Server.Connection) {
-	go HTTP.HandlerRequest(c.Socket, func(r *HTTP.Request, err error) {
+func Handler(c *connection.Connection) {
+	go http.HandlerRequest(c.Socket, func(r *http.Request, err error) {
 		if err != nil {
-			fmt.Println("error on handling request", err)
-			c.SendAndClose(HTTP.MakeResponse(HTTP.BadRequest, nil, ""))
+			c.SendAndClose(http.MakeResponse(http.BadRequest, nil, ""))
 			return
 		}
 
-		sendFile(c, r)
+		send(c, r)
 	})
 }
 
-func sendFile(c *Server.Connection, r *HTTP.Request) {
+func send(c *connection.Connection, r *http.Request) {
 	if r.Method != "GET" {
-		c.SendAndClose(HTTP.MakeResponse(HTTP.BadRequest, nil, ""))
+		c.SendAndClose(http.MakeResponse(http.BadRequest, nil, ""))
 		return
 	}
 
@@ -59,17 +58,17 @@ func sendFile(c *Server.Connection, r *HTTP.Request) {
 		r.Path = r.Path + ".html"
 	}
 
-	path := ROOT_DIR + r.Path
+	path := rootPath + r.Path
 
 	if !fileExists(path) {
-		c.SendAndClose(HTTP.MakeResponse(HTTP.NotFound, nil, ""))
+		c.SendAndClose(http.MakeResponse(http.NotFound, nil, ""))
 		return
 	}
 
 	content, err := readFile(path)
 
 	if err != nil {
-		c.SendAndClose(HTTP.MakeResponse(HTTP.InternalServerError, nil, ""))
+		c.SendAndClose(http.MakeResponse(http.InternalServerError, nil, ""))
 		return
 	}
 
@@ -84,7 +83,7 @@ func sendFile(c *Server.Connection, r *HTTP.Request) {
 		headers["Content-Type"] = extHeader
 	}
 
-	c.SendAndClose(HTTP.MakeResponse(HTTP.OK, headers, content))
+	c.SendAndClose(http.MakeResponse(http.OK, headers, content))
 }
 
 func fileExists(path string) bool {

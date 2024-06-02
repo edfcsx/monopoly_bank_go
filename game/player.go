@@ -1,4 +1,4 @@
-package Game
+package game
 
 import (
 	"github.com/google/uuid"
@@ -6,6 +6,7 @@ import (
 )
 
 type Player struct {
+	Id       string
 	Name     string
 	Password string
 	Balance  int
@@ -14,6 +15,19 @@ type Player struct {
 
 var Players = make(map[string]*Player)
 var PlayersMutex = sync.Mutex{}
+
+func GetOnlinePlayersNames() []string {
+	PlayersMutex.Lock()
+	defer PlayersMutex.Unlock()
+
+	names := make([]string, 0, len(Players))
+
+	for _, player := range Players {
+		names = append(names, player.Name)
+	}
+
+	return names
+}
 
 func PlayerExistsByName(name string) *Player {
 	PlayersMutex.Lock()

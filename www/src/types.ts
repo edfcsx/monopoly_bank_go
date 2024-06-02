@@ -10,12 +10,24 @@ export enum CommandsResponse {
 	TransferInsufficientFunds  = "TransferInsufficientFunds",
 	TransferReceived           = "TransferReceived",
 	BadRequest                 = "BadRequest",
-	GlobalMessage              = "GlobalMessage"
+	GlobalMessage              = "GlobalMessage",
+	OnlinePlayersData					 = "OnlinePlayersData"
 }
 
 export enum CommandsRequest {
 	Authenticate               = "Authenticate",
 	Ping                       = "Ping",
 	SendProfile                = "SendProfile",
-	Transfer                   = "Transfer"
+	Transfer                   = "Transfer",
+	OnlinePlayers              = "OnlinePlayers"
+}
+
+export interface NetworkingMessage {
+	command: CommandsRequest | CommandsResponse,
+	args?: { [key:string]: any }
+	[key: string]: any
+}
+
+export abstract class Commands {
+	abstract execute (serverMessage: NetworkingMessage): void;
 }

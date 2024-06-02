@@ -1,8 +1,14 @@
-package Parse
+package websocket
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
 	"io"
+	"monopoly_bank_go/accounts"
+	"monopoly_bank_go/connection"
+	"monopoly_bank_go/http"
 	"net"
 	"time"
 )
@@ -54,6 +60,7 @@ const (
 )
 
 type FrameErrorCode int
+
 type FrameError struct {
 	Code    FrameErrorCode
 	Message string
@@ -66,7 +73,11 @@ const (
 	ErrSend
 )
 
-func ReadFromWebsocket(socket net.Conn) (*Frame, *FrameError) {
+const MagicGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+type WebsocketMessageHandler func(string, *connection.Connection)
+
+func Read(socket net.Conn) (*Frame, *FrameError) {
 	frame := &Frame{}
 
 	buffer := make([]byte, 2)
@@ -149,7 +160,7 @@ func ReadFromWebsocket(socket net.Conn) (*Frame, *FrameError) {
 	return frame, nil
 }
 
-func WriteToWebsocket(socket net.Conn, data string, c opcode) *FrameError {
+func Write(socket net.Conn, data string, c opcode) *FrameError {
 	var buffer bytes.Buffer
 	header := byte(0x80 | byte(c))
 	buffer.Write([]byte{header})
@@ -183,4 +194,97 @@ func WriteToWebsocket(socket net.Conn, data string, c opcode) *FrameError {
 	}
 
 	return nil
+}
+
+var MessageHandler WebsocketMessageHandler
+
+func SetMessageHandler(handler WebsocketMessageHandler) {
+	MessageHandler = handler
+}
+
+func Handler(c *connection.Connection) {
+	done := make(chan bool)
+
+	go http.HandlerRequest(c.Socket, func(r *http.Request, err error) {
+		if err != nil {
+			c.SendAndClose(http.MakeResponse(http.BadRequest, nil, ""))
+			return
+		}
+
+		if acceptKey, ok := r.Headers["Sec-WebSocket-Key"]; ok {
+			if r.Headers["Upgrade"] == "websocket" {
+				// Authorization check
+				if hash, ok := r.Query["player_hash"]; ok {
+					acc := accounts.ExistsByHash(hash)
+
+					if acc == nil {
+						c.SendAndClose(http.MakeResponse(http.Unauthorized, nil, ""))
+						return
+					}
+				}
+
+				headers := map[string]string{
+					"Upgrade":              "websocket",
+					"Connection":           "Upgrade",
+					"Sec-WebSocket-Accept": makeHandshakeKey(acceptKey),
+				}
+
+				c.Send(http.MakeResponse(http.SwitchingProtocols, headers, ""))
+				go listen(c)
+
+				// release goroutine
+				done <- true
+				return
+			}
+		}
+
+		c.SendAndClose(http.MakeResponse(http.BadRequest, nil, ""))
+	})
+
+	<-done
+}
+
+func makeHandshakeKey(key string) string {
+	combined := key + MagicGUID
+
+	hasher := sha1.New()
+	hasher.Write([]byte(combined))
+	hash := hasher.Sum(nil)
+
+	output := base64.StdEncoding.EncodeToString(hash)
+	return output
+}
+
+func listen(c *connection.Connection) {
+	for {
+		frame, err := Read(c.Socket)
+
+		if err != nil {
+			fmt.Println("error on reading from socket", err.Message)
+			wErr := Write(c.Socket, "", CloseFrame)
+
+			if wErr != nil {
+				fmt.Println("error on writing to socket", wErr)
+			}
+
+			c.Close()
+			break
+		}
+
+		if frame.Op == CloseFrame {
+			c.Close()
+			break
+		} else if frame.Op == PingFrame {
+			wErr := Write(c.Socket, string(frame.Payload), PongFrame)
+
+			if wErr != nil {
+				fmt.Println("error on writing to socket", wErr)
+			}
+
+			continue
+		}
+
+		// handle command
+		MessageHandler(string(frame.Payload), c)
+	}
 }

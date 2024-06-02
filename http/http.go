@@ -1,4 +1,4 @@
-package HTTP
+package http
 
 import (
 	"bufio"
@@ -30,9 +30,16 @@ const (
 	SwitchingProtocols  StatusCode = 101
 	OK                  StatusCode = 200
 	BadRequest          StatusCode = 400
+	Unauthorized        StatusCode = 401
 	NotFound            StatusCode = 404
 	InternalServerError StatusCode = 500
 )
+
+var CorsHeaders = map[string]string{
+	"Access-Control-Allow-Origin":  "*",                                                                                  // Permite solicitações de qualquer origem
+	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",                                                    // Permite os métodos HTTP especificados
+	"Access-Control-Allow-Headers": "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization", // Permite os cabeçalhos HTTP especificados
+}
 
 func MakeResponse(status StatusCode, headers map[string]string, body string) string {
 	response := fmt.Sprintf("HTTP/1.1 %d %s\r\n", status, statusText[status])
@@ -61,12 +68,14 @@ type Request struct {
 	Headers map[string]string
 	Body    string
 	Data    string
+	Query   map[string]string
 }
 
 func HandlerRequest(socket net.Conn, cb func(r *Request, err error)) {
 	request := &Request{
 		socket:  socket,
 		Headers: make(map[string]string),
+		Query:   make(map[string]string),
 	}
 
 	err := request.parse()
@@ -79,12 +88,15 @@ func HandlerRequest(socket net.Conn, cb func(r *Request, err error)) {
 	cb(request, nil)
 }
 
+// @TODO: refactor parseHeaders method in parseStatusLine and parseHeaders
 func (r *Request) parseHeaders() {
 	lines := strings.Split(r.Data, "\r\n")
 	status := strings.Split(lines[0], " ")
 
 	r.Method = status[0]
 	r.Path = status[1]
+
+	parseQuery(r)
 
 	for i := 1; i < len(lines); i++ {
 		if lines[i] == "" {
@@ -136,4 +148,24 @@ func (r *Request) parse() error {
 	}
 
 	return nil
+}
+
+func parseQuery(r *Request) {
+	idx := strings.Index(r.Path, "?")
+
+	if idx != -1 {
+		rawQuery := r.Path[idx+1:]
+		r.Path = r.Path[:idx]
+		query := strings.Split(rawQuery, "&")
+
+		for _, params := range query {
+			values := strings.Split(params, "=")
+
+			if len(values) > 1 {
+				r.Query[values[0]] = values[1]
+			} else {
+				r.Query[values[0]] = ""
+			}
+		}
+	}
 }

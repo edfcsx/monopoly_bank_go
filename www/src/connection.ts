@@ -1,15 +1,10 @@
 import { PopUp } from './popUp'
-import { CommandsRequest, CommandsResponse } from './types'
+import { CommandsRequest, CommandsResponse, NetworkingMessage } from './types'
 import { createUniqueID } from './id'
+import { Commands } from './commands'
 
 export function __Connection(): Connection {
 	return Connection.getInstance()
-}
-
-interface NetworkingMessage {
-	command: CommandsRequest | CommandsResponse,
-	args?: { [key:string]: any }
-	[key: string]: any
 }
 
 class Connection {
@@ -37,7 +32,8 @@ class Connection {
 	}
 
 	private createSocket (): void {
-		this.socket = new WebSocket("ws://192.168.15.10:4444");
+		const playerHash = sessionStorage.getItem('player_hash')
+		this.socket = new WebSocket(`ws://192.168.15.10:4444?player_hash=${playerHash}`)
 		this.is_open = false;
 
 		this.socket.onopen = () => {
@@ -50,7 +46,12 @@ class Connection {
 
 		this.socket.onerror = () => {
 			this.is_open = false
-			new PopUp().fire('Conexão', 'Não foi possível conectar ao servidor', 'error', 5000)
+			new PopUp().fire('Conexão', 'Sessão expirada!', 'error', 5000)
+
+			setTimeout(() => {
+				sessionStorage.clear()
+				window.location.href = '/'
+			}, 2000)
 		};
 
 		this.socket.onmessage = (e) => {
@@ -88,7 +89,6 @@ class Connection {
 		this.messages_worker = setInterval(() => {
 			while (this.messages.length) {
 				const message = this.messages.shift()
-				console.log('mensagem recebida', message)
 
 				if (message) {
 					const command = this.commands[`${message.command}`]
@@ -107,10 +107,10 @@ class Connection {
 	}
 
 	private createCommands () {
-		// this.commands[CommandsResponse.AuthenticateSuccess] = new AuthenticateSuccess()
-		// this.commands[CommandsResponse.AuthenticateFailed] = new AuthenticateFailed()
-		// this.commands[CommandsRequest.SendProfile] = new ProfileCommand()
-		// this.commands[CommandsResponse.GlobalMessage] = new GlobalMessage()
+		this.commands[CommandsResponse.AuthenticateSuccess] = new Commands.AuthSuccessCommand()
+		this.commands[CommandsResponse.AuthenticateFailed] = new Commands.AuthFailedCommand()
+		this.commands[CommandsResponse.GlobalMessage] = new Commands.GlobalMessageCommand()
+		this.commands[CommandsResponse.ProfileData] = new Commands.ProfileCommand()
 	}
 
 	public isOpen (): boolean {

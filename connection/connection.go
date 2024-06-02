@@ -1,15 +1,42 @@
-package Server
+package connection
 
 import (
 	"fmt"
+	"github.com/google/uuid"
+	"monopoly_bank_go/types"
 	"net"
 	"time"
 )
 
 type Connection struct {
-	id       string
-	protocol Protocol
+	Id       string
+	Protocol types.Protocol
 	Socket   net.Conn
+	IsClosed bool
+	PlayerId string
+}
+
+func MakeConnection(protocol types.Protocol, socket net.Conn) *Connection {
+	return &Connection{
+		Id:       uuid.New().String(),
+		Protocol: protocol,
+		Socket:   socket,
+		IsClosed: false,
+		PlayerId: "",
+	}
+}
+
+func (c *Connection) Close() {
+	if c.IsClosed {
+		return
+	}
+
+	c.IsClosed = true
+	err := c.Socket.Close()
+
+	if err != nil {
+		fmt.Println("error on closing connection", err)
+	}
 }
 
 func (c *Connection) SendAndClose(data string) {
@@ -17,7 +44,7 @@ func (c *Connection) SendAndClose(data string) {
 
 	if err != nil {
 		fmt.Println("error on setting write deadline", err)
-		CloseConnection(c)
+		c.Close()
 		return
 	}
 
@@ -25,15 +52,11 @@ func (c *Connection) SendAndClose(data string) {
 
 	if err != nil {
 		fmt.Println("error on writing response", err)
-		CloseConnection(c)
+		c.Close()
 		return
 	}
 
-	CloseConnection(c)
-}
-
-func (c *Connection) Close() {
-	CloseConnection(c)
+	c.Close()
 }
 
 func (c *Connection) Send(data string) {
@@ -41,7 +64,7 @@ func (c *Connection) Send(data string) {
 
 	if err != nil {
 		fmt.Println("error on setting write deadline", err)
-		CloseConnection(c)
+		c.Close()
 		return
 	}
 
@@ -49,7 +72,7 @@ func (c *Connection) Send(data string) {
 
 	if err != nil {
 		fmt.Println("error on writing response", err)
-		CloseConnection(c)
+		c.Close()
 		return
 	}
 }
