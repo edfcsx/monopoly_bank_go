@@ -29,9 +29,10 @@ document.getElementById('login_form')?.addEventListener('submit', (e) => {
 
 	// getLoginButton()?.setAttribute('disabled', 'true')
 
-	fetch( 'http://192.168.15.10:7600/login',{
+	fetch( 'http://192.168.15.9:7600/login',{
 		body: JSON.stringify({ username: formData.get('username'), password: formData.get('password') }),
 		method: 'POST',
+		mode: 'cors',
 		headers: {
 			'Content-Type': 'application/json',
 		}

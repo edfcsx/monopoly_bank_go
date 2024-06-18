@@ -2,6 +2,7 @@ import { PopUp } from './popUp'
 import { CommandsRequest, CommandsResponse, NetworkingMessage } from './types'
 import { createUniqueID } from './id'
 import { Commands } from './commands'
+import {MJTP} from "./mjtp";
 
 export function __Connection(): Connection {
 	return Connection.getInstance()
@@ -33,11 +34,28 @@ class Connection {
 
 	private createSocket (): void {
 		const playerHash = sessionStorage.getItem('player_hash')
-		this.socket = new WebSocket(`ws://192.168.15.10:4444?player_hash=${playerHash}`)
+		this.socket = new WebSocket(`ws://192.168.15.9:4444?player_hash=${playerHash}`)
 		this.is_open = false;
 
 		this.socket.onopen = () => {
 			this.is_open = true;
+
+			console.log('Conexão aberta')
+			console.log('authenticando')
+
+			const auth = new MJTP('/authenticate', { id: playerHash })
+			this.socket?.send(auth.toString())
+
+			setTimeout(() => {
+				console.log('requesting profile')
+				const mjtp = new MJTP('/status', {})
+				this.socket?.send(mjtp.toString())
+			}, 1000)
+			//
+			// setInterval(() => {
+			// 	const mjtp = new MJTP('/profile', {})
+			// 	this.socket?.send(mjtp.toString())
+			// }, 500)
 		}
 
 		this.socket.onclose = () => {
@@ -55,25 +73,27 @@ class Connection {
 		};
 
 		this.socket.onmessage = (e) => {
-			const [command, data] = String(e.data).split('|')
-			const msg: NetworkingMessage = data.length ? JSON.parse(data) : {} as NetworkingMessage
-
-			msg.command = command as CommandsResponse | CommandsRequest
-
-			if (msg.args_id && this.args_repository.has(msg.args_id)) {
-				const args = this.args_repository.get(msg.args_id)
-				this.args_repository.delete(msg.args_id)
-
-				if (args) {
-					msg.args = args
-				}
-			}
-
-			this.messages.push(msg)
-
-			if (!this.messages_worker) {
-				this.createWorker()
-			}
+			const mjtp = MJTP.parse(e.data)
+			console.log('MENSAGEM RECEBIDA:>', mjtp)
+			// const [command, data] = String(e.data).split('|')
+			// const msg: NetworkingMessage = data.length ? JSON.parse(data) : {} as NetworkingMessage
+			//
+			// msg.command = command as CommandsResponse | CommandsRequest
+			//
+			// if (msg.args_id && this.args_repository.has(msg.args_id)) {
+			// 	const args = this.args_repository.get(msg.args_id)
+			// 	this.args_repository.delete(msg.args_id)
+			//
+			// 	if (args) {
+			// 		msg.args = args
+			// 	}
+			// }
+			//
+			// this.messages.push(msg)
+			//
+			// if (!this.messages_worker) {
+			// 	this.createWorker()
+			// }
 		}
 	}
 

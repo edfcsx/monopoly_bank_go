@@ -56,6 +56,10 @@ func MakeResponse(status StatusCode, headers map[string]string, body string) str
 		response += "Connection: close\r\n"
 	}
 
+	for key, value := range CorsHeaders {
+		response += key + ": " + value + "\r\n"
+	}
+
 	response += "\r\n" + body
 
 	return response

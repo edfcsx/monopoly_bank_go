@@ -21,42 +21,46 @@ func Make(resource string, body map[string]interface{}) *Message {
 }
 
 func (m *Message) String() (string, error) {
-	jsonMap, err := json.Marshal(m.Body)
+	body := "{}"
 
-	if err != nil {
-		return "", err
+	if m.Body != nil {
+		j, err := json.Marshal(m.Body)
+
+		if err != nil {
+			return "", err
+		}
+		body = string(j)
 	}
 
-	return m.Resource + " " + m.Version + " " + string(jsonMap) + "\r\n\r\n", nil
+	return m.Resource + " " + m.Version + " " + body + "\r\n\r\n", nil
 }
 
 func Parse(data string) (*Message, error) {
 	message := &Message{}
 	message.Body = make(map[string]interface{})
 
-	// Split the data into 3 parts
-	parts := strings.Split(data, " ")
+	buffer := data
+	bufferIdx := 0
 
-	if len(parts) < 3 {
-		return nil, errors.New("invalid message format")
+	// Find the first space
+	bufferIdx = strings.Index(buffer, " ")
+	message.Resource = buffer[:bufferIdx]
+
+	// Find the second space
+	buffer = buffer[bufferIdx+1:]
+	bufferIdx = strings.Index(buffer, " ")
+	message.Version = buffer[:bufferIdx]
+
+	// Find the first \r\n\r\n
+	buffer = buffer[bufferIdx+1:]
+	bufferIdx = strings.Index(buffer, "\r\n\r\n")
+
+	if err := json.Unmarshal([]byte(buffer[:bufferIdx]), &message.Body); err != nil {
+
+		return nil, err
 	}
-
-	message.Resource = parts[0]
-	message.Version = parts[1]
-
 	if message.Version != "MJTP/1.0" {
 		return nil, errors.New("invalid version")
-	}
-
-	// Parse the body
-	bodyParts := strings.Split(parts[2], "\r\n\r\n")
-
-	if len(bodyParts) < 2 {
-		return nil, errors.New("invalid body format")
-	}
-
-	if err := json.Unmarshal([]byte(bodyParts[0]), &message.Body); err != nil {
-		return nil, err
 	}
 
 	return message, nil

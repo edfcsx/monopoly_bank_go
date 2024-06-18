@@ -27,6 +27,10 @@ func (r *Request) Respond(msg *mjtp.Message, sendToAll bool) {
 func (r *Request) SendResponses() {
 	for _, res := range r.response {
 		if arg, ok := r.Data.Body["args_id"]; ok {
+			if res.Msg.Body == nil {
+				res.Msg.Body = make(map[string]interface{})
+			}
+
 			if !res.SendToAll {
 				res.Msg.Body["args_id"] = arg
 			}
@@ -70,17 +74,19 @@ func sendRawResponse(data string, c *connection.Connection) {
 }
 
 var Resources = map[string]func(req *Request){
-	"/ping": PingHandler,
+	"/ping":         PingHandler,
+	"/status":       StatusHandler,
+	"/authenticate": AuthenticateHandler,
 }
 
 func Handler(msgRaw string, c *connection.Connection) {
 	msg, err := mjtp.Parse(msgRaw)
 
 	if err != nil {
-		errBody := make(map[string]interface{})
-		errBody["message"] = "invalid message format"
+		response := makeErrorResponse("Estamos recebendo mensagens inválidas," +
+			" por favor entre em contato com o desenvolvedor")
 
-		errMsg, errMakeMsg := mjtp.Make("/invalid", errBody).String()
+		errMsg, errMakeMsg := response.String()
 
 		if errMakeMsg != nil {
 			fmt.Println("error on make error message")

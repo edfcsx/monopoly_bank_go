@@ -6,9 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"monopoly_bank_go/accounts"
 	"monopoly_bank_go/connection"
-	"monopoly_bank_go/http"
 	"net"
 	"time"
 )
@@ -75,7 +73,7 @@ const (
 
 const MagicGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-type WebsocketMessageHandler func(string, *connection.Connection)
+var MessageHandler func(string, *connection.Connection)
 
 func Read(socket net.Conn) (*Frame, *FrameError) {
 	frame := &Frame{}
@@ -196,55 +194,7 @@ func Write(socket net.Conn, data string, c opcode) *FrameError {
 	return nil
 }
 
-var MessageHandler WebsocketMessageHandler
-
-func SetMessageHandler(handler WebsocketMessageHandler) {
-	MessageHandler = handler
-}
-
-func Handler(c *connection.Connection) {
-	done := make(chan bool)
-
-	go http.HandlerRequest(c.Socket, func(r *http.Request, err error) {
-		if err != nil {
-			c.SendAndClose(http.MakeResponse(http.BadRequest, nil, ""))
-			return
-		}
-
-		if acceptKey, ok := r.Headers["Sec-WebSocket-Key"]; ok {
-			if r.Headers["Upgrade"] == "websocket" {
-				// Authorization check
-				if hash, ok := r.Query["player_hash"]; ok {
-					acc := accounts.ExistsByHash(hash)
-
-					if acc == nil {
-						c.SendAndClose(http.MakeResponse(http.Unauthorized, nil, ""))
-						return
-					}
-				}
-
-				headers := map[string]string{
-					"Upgrade":              "websocket",
-					"Connection":           "Upgrade",
-					"Sec-WebSocket-Accept": makeHandshakeKey(acceptKey),
-				}
-
-				c.Send(http.MakeResponse(http.SwitchingProtocols, headers, ""))
-				go listen(c)
-
-				// release goroutine
-				done <- true
-				return
-			}
-		}
-
-		c.SendAndClose(http.MakeResponse(http.BadRequest, nil, ""))
-	})
-
-	<-done
-}
-
-func makeHandshakeKey(key string) string {
+func MakeHandshakeKey(key string) string {
 	combined := key + MagicGUID
 
 	hasher := sha1.New()
@@ -255,7 +205,7 @@ func makeHandshakeKey(key string) string {
 	return output
 }
 
-func listen(c *connection.Connection) {
+func Listen(c *connection.Connection) {
 	for {
 		frame, err := Read(c.Socket)
 

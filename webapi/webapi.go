@@ -24,9 +24,10 @@ func Handler(c *connection.Connection) {
 			return
 		}
 
-		// CORS
+		// respond preflight requests
 		if r.Method == "OPTIONS" {
-			c.SendAndClose(http.MakeResponse(http.OK, http.CorsHeaders, ""))
+			response := http.MakeResponse(http.OK, nil, "")
+			c.SendAndClose(response)
 			return
 		}
 
